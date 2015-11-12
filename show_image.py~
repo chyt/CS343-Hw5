@@ -163,6 +163,6 @@ log_canvas = Tkinter.Canvas(log, offset=canvas_offset, width=log_width, height=l
 log_canvas.pack()
 
 log_text = classifier.logtext()
-log_canvas.create_text(log_width/2, log_height/2, width=log_height, text=str(log_text))
+log_canvas.create_text(500, 500, width=1000, text=str(log_text))
 
 root.mainloop() # wait until user clicks the window

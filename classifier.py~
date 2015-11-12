@@ -36,7 +36,7 @@ class ObjectClassifier():
 	return self.log_text	
 	#return '\n\n'.join(self.log_text);
 
-def stringify(array):
+def stringify(self, array):
     return_string = ""
     for inner_array in array:
 	return_string = return_string + "["
