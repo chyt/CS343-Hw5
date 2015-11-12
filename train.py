@@ -2,7 +2,7 @@ import classifier
 import os, os.path
 
 def train():
-    path = "snapshots_training/"
+    path = "/v/filer4b/v38q001/cyt/Desktop/OpenNERO-2015-05-28/Hw5/snapshots_training/edges/"
     images = {}
     i = 0;
     for root, dirs, filenames in os.walk(path):
@@ -27,8 +27,22 @@ def train():
 	#implement threshold
 	edge_array = noise_reduction_edge_array(edge_array)
 	print "number of edge pixels after filter: ", count_edges_in_array(edge_array)
+	path_array = find_all_paths(edge_array)
 
     #print images
+
+def find_all_paths(edge_array):
+    for y in range(0,len(array)):
+	y_array = array[y]
+	for x in range(0, len(y_array)):
+	    pixel_value = array[y][x]
+	    path = path_from_pixel(array, y, x, [])
+	    #remove all items in path from edge_array
+	    #call find_all_paths again
+	    break
+
+def path_from_pixel(array, y, x, path_list):
+    
 
 def count_edges_in_array(array):
     edge_count = 0
@@ -41,18 +55,14 @@ def count_edges_in_array(array):
     return edge_count
 
 def noise_reduction_edge_array(array):
-    max_pixel_value = 0
     for y in range(0,len(array)):
 	y_array = array[y]
 	for x in range(0, len(y_array)):
 	    pixel_value = array[y][x]
-	    if pixel_value > max_pixel_value:
-		max_pixel_value = pixel_value
-	    if pixel_value == 255:
-		print "pixel value is 255 at position %s, %s", (x, y)
 	    if pixel_value < 75:
 		array[y][x] = 0
-    print "max pixel value: ", max_pixel_value
+	    else:
+		array[y][x] = 1
     return array
 
 train()
