@@ -36,12 +36,12 @@ def find_all_paths(edge_array):
 	y_array = array[y]
 	for x in range(0, len(y_array)):
 	    pixel_value = array[y][x]
-	    path = path_from_pixel(y, x, [])
+	    path = path_from_pixel(array, y, x, [])
 	    #remove all items in path from edge_array
 	    #call find_all_paths again
 	    break
 
-def path_from_pixel(y, x, path_list):
+def path_from_pixel(array, y, x, path_list):
     
 
 def count_edges_in_array(array):

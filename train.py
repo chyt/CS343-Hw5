@@ -2,7 +2,7 @@ import classifier
 import os, os.path
 
 def train():
-    path = "/v/filer4b/v38q001/cyt/Desktop/OpenNERO-2015-05-28/Hw5/snapshots_training/edges/"
+    path = "./snapshots_training/edges/"
     images = {}
     i = 0;
     for root, dirs, filenames in os.walk(path):
