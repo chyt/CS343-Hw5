@@ -10,7 +10,7 @@ def train():
     i = 0;
     for root, dirs, filenames in os.walk(path):
         for f in filenames:
-	   if f=="1cube.png":
+	   if f=="3cube.png":
 	   #if i < 9000:
 	       print "loading image", f
                images[f] = classifier.load_image(path+f)
@@ -34,8 +34,6 @@ def train():
 	path_string = ""
 	for path in paths:
 	    path_string += path_string_from_array(path)
-	    #print "-------- path ---------"
-	    #print path_string_from_array(path)
 	#print path_string
 	sorted_paths = remove_tail(sorted(paths, key=len, reverse=True), 0.90)
 	print "number of paths:", len(sorted_paths)
@@ -44,9 +42,8 @@ def train():
 	all_segments = []
 	all_segments_string = ""
 	for path in sorted_paths:
+	    #print "new path"
 	    path_segments = find_segments_from_path(path, [])
-	    print path_segments
-	    print "---------------"
 	    all_segments_string += path_segments_string(path_segments)
 	    #print path_segments_string(path_segments)
 	    for path_segment in path_segments:
@@ -55,7 +52,7 @@ def train():
 	#print all_segments
 	#print "-----all segments string"
 	#print all_segments_string
-	#print "number of line segments:", len(all_segments)
+	print "number of line segments:", len(all_segments)
 
 def remove_tail(sorted_paths, n):
     # Removes the "long tail" from a sorted path array, retaining only the first n percent of non-singular paths. This helps filter out noisy paths that were detected.
@@ -103,7 +100,7 @@ def is_line_segment(a, b):
     init_point = a[0]
     for point in a:
 	distance = dist(init_point[0], init_point[1], b[0], b[1], point[0], point[1])
-	if distance > math.sqrt(2):
+	if distance > 3:
 	    return False
     return True
     
@@ -135,27 +132,38 @@ def path_string_from_array(path_array):
 
 def find_all_paths(edge_array, path_array):
     # Find all the paths in the edge space.
-    for coordinate in edge_array:
-	edge_array, path = path_from_pixel(edge_array, coordinate, [])
+    if len(edge_array) > 0:
+	edge_array, path = path_from_edge_array(edge_array, edge_array[0], [])
+	#print path_string_from_array(path)
+	#print "-------------"
 	path_array.append(path)
 	return find_all_paths(edge_array, path_array)
     return path_array
 
-def path_from_pixel(edge_array, coordinate, path):
+def path_from_edge_array(edge_array, coordinate, path):
     # Recursively generate a continuous path from a given initial coordinate in the edge_array.
-    path.append(coordinate)
-    edge_array.remove(coordinate)
-    neighbors = neighbors_from_edge(coordinate)
+    neighbors = neighbors_from_edge(coordinate, edge_array)
     for edge in neighbors:
-	if edge in edge_array:
-	    return path_from_pixel(edge_array, edge, path)
+	path.append(edge)
+	edge_array.remove(edge)
+    #if len(neighbors) > 0:
+	#return path_from_edge_array(edge_array, neighbors[0], path)
+    for edge in neighbors:
+	edge_neighbors = neighbors_from_edge(edge, edge_array)
+	if len(edge_neighbors) > 0:
+	    return path_from_edge_array(edge_array, edge, path)
     return (edge_array, path)
 
-def neighbors_from_edge(coordinate):
+def neighbors_from_edge(coordinate, edge_array):
     # Returns all of the neighbors of a given edge.
     y = coordinate[0]
     x = coordinate[1]
-    return [[y-1, x-1], [y, x-1], [y+1, x-1], [y-1, x], [y+1, x], [y-1, x+1], [y, x+1], [y+1, x+1]]
+    neighbors = [[y-1, x-1], [y, x-1], [y+1, x-1], [y-1, x], [y, x], [y+1, x], [y-1, x+1], [y, x+1], [y+1, x+1]]
+    valid_neighbors = []
+    for neighbor in neighbors:
+	if neighbor in edge_array:
+	    valid_neighbors.append(neighbor)
+    return valid_neighbors
 
 def count_edges_in_array(array):
     # Counts the number of edges in the edge_array.
