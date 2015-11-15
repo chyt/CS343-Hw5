@@ -34,6 +34,8 @@ def train():
 	path_string = ""
 	for path in paths:
 	    path_string += path_string_from_array(path)
+	    #print "-------- path ---------"
+	    #print path_string_from_array(path)
 	#print path_string
 	sorted_paths = remove_tail(sorted(paths, key=len, reverse=True), 0.90)
 	print "number of paths:", len(sorted_paths)
@@ -43,14 +45,17 @@ def train():
 	all_segments_string = ""
 	for path in sorted_paths:
 	    path_segments = find_segments_from_path(path, [])
+	    print path
+	    print "---------------"
 	    all_segments_string += path_segments_string(path_segments)
+	    #print path_segments_string(path_segments)
 	    for path_segment in path_segments:
 		all_segments.append(path_segment)
 	#print "-----all segments"
 	#print all_segments
 	#print "-----all segments string"
-	print all_segments_string
-	print "number of line segments:", len(all_segments)
+	#print all_segments_string
+	#print "number of line segments:", len(all_segments)
 
 def remove_tail(sorted_paths, n):
     # Removes the "long tail" from a sorted path array, retaining only the first n percent of non-singular paths. This helps filter out noisy paths that were detected.
@@ -98,7 +103,7 @@ def is_line_segment(a, b):
     init_point = a[0]
     for point in a:
 	distance = dist(init_point[0], init_point[1], b[0], b[1], point[0], point[1])
-	if distance > 2:
+	if distance > math.sqrt(2):
 	    return False
     return True
     
@@ -170,7 +175,7 @@ def noise_reduction_edge_array(array):
 	y_array = array[y]
 	for x in range(0, len(y_array)):
 	    pixel_value = array[y][x]
-	    if pixel_value > 125:
+	    if pixel_value > 70:
 		edge_array.append([y,x])
     return edge_array
 
