@@ -20,39 +20,44 @@ def train():
 	print "parsing image", key
 	image_list = images[key]
 	edge_array = image_list[0]
-	# Cut out the background from the image
-	edge_array = edge_array[280:]
-	edge_array = edge_array[1:-1]
-	# Remove 1px border from all sides
-        for y in range(0, len(edge_array)):
-            row = edge_array[y]
-            edge_array[y][0] = 0
-            edge_array[y][len(row)-1] = 0
-	# Process the image
-	edge_array = noise_reduction_edge_array(edge_array)
-	paths = find_all_paths(edge_array, [])
-	path_string = ""
-	for path in paths:
-	    path_string += path_string_from_array(path)
-	#print path_string
-	sorted_paths = remove_tail(sorted(paths, key=len, reverse=True), 0.90)
-	#print "number of paths:", len(sorted_paths)
+	segments = get_segments_from_edges(edge_array)
+	print "number of line segments:", len(segments)
 
-	# Generate full line segment list
-	all_segments = []
-	all_segments_string = ""
-	for path in sorted_paths:
-	    #print "new path"
-	    path_segments = find_segments_from_path(path, [])
-	    all_segments_string += path_segments_string(path_segments)
-	    #print path_segments_string(path_segments)
-	    for path_segment in path_segments:
-		all_segments.append(path_segment)
-	#print "-----all segments"
-	#print all_segments
-	#print "-----all segments string"
-	#print all_segments_string
-	print "number of line segments:", len(all_segments)
+def get_segments_from_edges(edge_array):
+    # Returns the set of line segments from a given edge array
+    # Cut out the background from the image
+    edge_array = edge_array[280:]
+    edge_array = edge_array[1:-1]
+    # Remove 1px border from all sides
+    for y in range(0, len(edge_array)):
+	row = edge_array[y]
+	edge_array[y][0] = 0
+        edge_array[y][-1] = 0
+    # Process the image
+    edge_array = noise_reduction_edge_array(edge_array)
+    paths = find_all_paths(edge_array, [])
+    path_string = ""
+    for path in paths:
+	path_string += path_string_from_array(path)
+    #print path_string
+    sorted_paths = remove_tail(sorted(paths, key=len, reverse=True), 0.90)
+    print "number of paths:", len(sorted_paths)
+
+    # Generate full line segment list
+    all_segments = []
+    all_segments_string = ""
+    for path in sorted_paths:
+	#print "new path"
+	path_segments = find_segments_from_path(path, [])
+	all_segments_string += path_segments_string(path_segments)
+	#print path_segments_string(path_segments)
+        for path_segment in path_segments:
+	    all_segments.append(path_segment)
+    #print "----- all segments -----"
+    #print all_segments
+    #print "----- all segments string -----"
+    #print all_segments_string
+    return all_segments
 
 def remove_tail(sorted_paths, n):
     # Removes the "long tail" from a sorted path array, retaining only the first n percent of non-singular paths. This helps filter out noisy paths that were detected.
@@ -134,8 +139,6 @@ def find_all_paths(edge_array, path_array):
     # Find all the paths in the edge space.
     if len(edge_array) > 0:
 	edge_array, path = path_from_edge_array(edge_array, edge_array[0], [])
-	#print path_string_from_array(path)
-	#print "-------------"
 	path_array.append(path)
 	return find_all_paths(edge_array, path_array)
     return path_array
@@ -146,8 +149,6 @@ def path_from_edge_array(edge_array, coordinate, path):
     for edge in neighbors:
 	path.append(edge)
 	edge_array.remove(edge)
-    #if len(neighbors) > 0:
-	#return path_from_edge_array(edge_array, neighbors[0], path)
     for edge in neighbors:
 	edge_neighbors = neighbors_from_edge(edge, edge_array)
 	if len(edge_neighbors) > 0:
