@@ -2,6 +2,7 @@ import numpy as np
 import random
 import Image
 import itertools
+import train
 
 """
 This is your object classifier. You should implement the train and
@@ -9,15 +10,16 @@ classify methods for this assignment.
 """
 class ObjectClassifier():
     labels = ['Tree', 'Sydney', 'Steve', 'Cube']
-    log_text = ""
+    log_text = []
     
     """
     Everytime a snapshot is taken, this method is called and
     the result is displayed on top of the four-image panel.
     """
     def classify(self, edge_pixels, orientations):
-
-	self.log_text = self.stringify(edge_pixels)
+	#self.log_text = self.stringify(edge_pixels)
+	segments = train.get_segments_from_edges(edge_array)
+	self.appendLog("number of line segments:", len(segments))
 	return random.choice(self.labels)
     
     """
@@ -33,8 +35,8 @@ class ObjectClassifier():
 	self.log_text.append()
 	
     def logtext(self):
-	return self.log_text	
-	#return '\n\n'.join(self.log_text);
+	#return self.log_text	
+	return '\n\n'.join(self.log_text);
 
 def stringify(array):
     return_string = ""

@@ -41,7 +41,7 @@ def get_segments_from_edges(edge_array):
 	path_string += path_string_from_array(path)
     #print path_string
     sorted_paths = remove_tail(sorted(paths, key=len, reverse=True), 0.90)
-    print "number of paths:", len(sorted_paths)
+    #print "number of paths:", len(sorted_paths)
 
     # Generate full line segment list
     all_segments = []
