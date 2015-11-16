@@ -138,7 +138,7 @@ def calculate_average_and_range(segments, key):
     global lady_sum
     global cube_sum
     global tree_sum
-    global steve_sum = 0
+    global steve_sum
     n = 8
     num_edges = len(segments)
     if "cube" in key:

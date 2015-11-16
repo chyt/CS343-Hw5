@@ -49,11 +49,17 @@ def train():
 def association_matrix(edge_array):
     association_matrix = []
     # FEATURE 1: NUMBER OF LINE SEGMENTS IS LESS THAN OR EQUAL TO 8
-    # FEATURE 2: VERTICAL INTERSECTION POSITIONS
-		# steve      lady      cube      tree
+    # FEATURE 2: VERTICAL INTERSECTION POSITION ABOVE
+    # FEATURE 3: VERTICAL INTERSECTION POSITION BELOW
+    #             steve      lady      cube      tree
     feature1 = [  0/57,      3/57,    27/57,     27/57    ]
-     
-    pass
+    feature2 = [  7/38,      5/38,     0/38,     26/38    ]
+    feature3 = [  20/70,     22/70,    27/70,     1/70    ]
+    
+    association_matrix.append(feature1)
+    association_matrix.append(feature2)
+    association_matrix.append(feature2)
+    return association_matrix
 
 # -------------------- methods for finding vertical intersection points from line segments --------------------
 
