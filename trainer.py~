@@ -26,9 +26,9 @@ def train():
 
     for root, dirs, filenames in os.walk(path):
         for f in filenames:
-	   #if f=="9tree.png":
+	   #if f=="3steve.png":
 	   #if i < 9000:
-	   if "lady" in f: 
+	   if "steve" in f: 
 	       print "loading image", f
                images[f] = classifier.load_image(path+f)
 	       i = i+1
@@ -39,27 +39,51 @@ def train():
 	edge_array = image_list[0]
 	segments = get_segments_from_edges(edge_array)
 	#calculate_average_and_range(segments, key)
-        print "FEATURE 1 (number of line segments):", len(segments)   
+        print "FEATURE 1/4 (number of line segments):", len(segments)   
 	intersection_position = vertical_intersection_point(segments)
-	print "FEATURE 2 (vertical intersection position):", ("ABOVE" if  (intersection_position == 1) else "BELOW")
+	#print "FEATURE 2/3 (vertical intersection position):", ("ABOVE" if  (intersection_position == 1) else "BELOW")
+	area = frame_area(segments)
+	print "FEATURE 5 (area of object frame):", area
     #print_averages_and_ranges()
 
 # -------------------- association matrix ---------------------
 
-def association_matrix(edge_array):
-    association_matrix = []
+def association_matrix():
+    # There are 27 of each object in our training data
+    n = 27
     # FEATURE 1: NUMBER OF LINE SEGMENTS IS LESS THAN OR EQUAL TO 8
-    # FEATURE 2: VERTICAL INTERSECTION POSITION ABOVE
-    # FEATURE 3: VERTICAL INTERSECTION POSITION BELOW
+    # FEATURE 2: VERTICAL INTERSECTION POSITION IS ABOVE
+    # FEATURE 3: VERTICAL INTERSECTION POSITION IS BELOW
+    # FEATURE 4: NUMBER OF LINE SEGMENTS IS GREATER THAN 8
     #             steve      lady      cube      tree
-    feature1 = [  0/57,      3/57,    27/57,     27/57    ]
-    feature2 = [  7/38,      5/38,     0/38,     26/38    ]
-    feature3 = [  20/70,     22/70,    27/70,     1/70    ]
+    feature1 = [   0/n,       3/n,     27/n,      27/n    ]
+    feature2 = [   7/n,       5/n,      0/n,      26/n    ]
+    feature3 = [  20/n,      22/n,     27/n,       1/n    ]
+    feature4 = [  27/n,      24/n,      0/n,       0/n    ]
     
-    association_matrix.append(feature1)
-    association_matrix.append(feature2)
-    association_matrix.append(feature2)
+    association_matrix = [feature1, feature2, feature3, feature4]
     return association_matrix
+
+# -------------------- methods for calculating frame of object --------------------
+
+def frame_area(segments):
+    all_y = []
+    all_x = []
+    for segment in segments:
+	y1 = 600-segment[0][0]
+        y2 = 600-segment[1][0]
+	x1 = segment[0][1]
+        x2 = segment[1][1]
+	all_y.append(y1)
+	all_y.append(y2)
+	all_x.append(x1)
+	all_x.append(x2)
+    min_x = min(all_x)
+    max_x = max(all_x)
+    min_y = min(all_y)
+    max_y = max(all_y)
+    area = (max_x - min_x) * (max_y - min_y)
+    return area
 
 # -------------------- methods for finding vertical intersection points from line segments --------------------
 
@@ -138,7 +162,7 @@ def calculate_average_and_range(segments, key):
     global lady_sum
     global cube_sum
     global tree_sum
-    global steve_sum = 0
+    global steve_sum
     n = 8
     num_edges = len(segments)
     if "cube" in key:

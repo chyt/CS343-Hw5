@@ -1,0 +1,12 @@
+{'steve': [28, 134], 'lady': [6, 40], 'cube': [1, 4], 'tree': [3, 7]}
+cube_average 3.55555555556
+tree_average 5.25925925926
+lady_average 17.962962963
+cube_average 66.8518518519
+
+less than or equal to 8: {'steve': 0, 'tree': 27/57, 'cube': 27/57, 'lady': 3/57}
+
+
+orientation: 
+	above: {'steve': 7/38, 'lady': 5/38, 'cube': 0/38, 'tree':26/38}
+	below: {'steve': 20/70, 'lady': 22/70, 'cube': 27/70, 'tree': 1/70}

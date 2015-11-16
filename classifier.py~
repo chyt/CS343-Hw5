@@ -2,14 +2,17 @@ import numpy as np
 import random
 import Image
 import itertools
-#from trainer import get_segments_from_edges
+import operator
+
+from trainer import association_matrix
+from trainer import get_segments_from_edges
+from trainer import vertical_intersection_point
 
 """
 This is your object classifier. You should implement the train and
 classify methods for this assignment.
 """
 class ObjectClassifier():
-    labels = ['Tree', 'Sydney', 'Steve', 'Cube']
     log_text = []
     
     """
@@ -17,11 +20,49 @@ class ObjectClassifier():
     the result is displayed on top of the four-image panel.
     """
     def classify(self, edge_pixels, orientations):
-	segments = get_segments_from_edges(edge_pixels)
-	self.appendLog("number of line segments: %s" % (len(segments)))
-	self.appendLog("segments: %s" % (segments))
+	# Get the trained association matrix
+	matrix = association_matrix()
 	
-	return random.choice(self.labels)
+	# Get feature 1: number of line segments
+	segments = get_segments_from_edges(edge_pixels)
+	self.append_log("Feature 1: number of line segments: %s" % (len(segments)))
+	self.append_log("%s" % (segments))
+	prob_feature1_steve = prob_feature1_lady = prob_feature1_cube = prob_feature1_tree = 1
+        if len(segments) <= 8:
+            prob_feature1_steve = matrix[0][0]
+	    prob_feature1_lady = matrix[0][1]
+	    prob_feature1_cube = matrix[0][2]
+	    prob_feature1_tree = matrix[0][3]
+
+	intersection_position = vertical_intersection_point(segments)
+	self.append_log("Feature 2/3 (vertical intersection position): %s" % ("ABOVE" if  (intersection_position == 1) else "BELOW"))
+
+	# Get feature 2: vertical intersection position above
+	prob_feature2_steve = prob_feature2_lady = prob_feature2_cube = prob_feature2_tree = 1.0
+        if intersection_position == 1:
+            prob_feature2_steve = matrix[1][0]
+	    prob_feature2_lady = matrix[1][1]
+	    prob_feature2_cube = matrix[1][2]
+	    prob_feature2_tree = matrix[1][3]
+
+	# Get feature 3: vertical intersection position below
+	prob_feature3_steve = prob_feature3_lady = prob_feature3_cube = prob_feature3_tree = 1.0
+        if intersection_position == 0:
+            prob_feature3_steve = matrix[2][0]
+	    prob_feature3_lady = matrix[2][1]
+	    prob_feature3_cube = matrix[2][2]
+	    prob_feature3_tree = matrix[2][3]
+
+	# P(C) = 0.25, because we have equal number of images for each object in our training set
+	p_c = 0.25
+	p_steve = p_c * prob_feature1_steve * prob_feature2_steve * prob_feature3_steve
+	p_lady = p_c * prob_feature1_lady * prob_feature2_lady * prob_feature3_lady
+	p_cube = p_c * prob_feature1_cube * prob_feature2_cube * prob_feature3_cube
+	p_tree = p_c * prob_feature1_tree * prob_feature2_tree * prob_feature3_tree
+
+	self.append_log("p(steve): %s | p(lady): %s | p(cube): %s | p(tree): %s" % (p_steve, p_lady, p_cube, p_tree))
+	p_dict = { "Steve":p_steve, "Lady":p_lady, "Cube":p_cube, "Tree":p_tree }
+	return max(p_dict.iteritems(), key=operator.itemgetter(1))[0]
     
     """
     This is your training method. Feel free to change the
@@ -32,7 +73,7 @@ class ObjectClassifier():
     def train(self):
         pass
     
-    def appendLog(self, text):
+    def append_log(self, text):
 	self.log_text.append(text)
 	
     def logtext(self):
