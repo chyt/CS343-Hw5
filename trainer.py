@@ -1,3 +1,5 @@
+from __future__ import division
+from collections import OrderedDict
 import os, os.path
 import math
 import sys
@@ -15,8 +17,8 @@ def train():
     i = 0;
     for root, dirs, filenames in os.walk(path):
         for f in filenames:
-	   #if f=="3cube.png":
-	   if i < 9000:
+	   if f=="3cube.png":
+	   #if i < 9000:
 	       print "loading image", f
                images[f] = classifier.load_image(path+f)
 	       i = i+1
@@ -26,9 +28,55 @@ def train():
 	image_list = images[key]
 	edge_array = image_list[0]
 	segments = get_segments_from_edges(edge_array)
+        x = get_longest_lines(segments, 2)
+        print find_intersection([0, 5, 0, 5], [0, 1, 5, 3])
 	print "number of line segments:", len(segments)    
 
+# -------------------- methods for finding features from line segments --------------------
 
+def association_matrix(edge_array):
+    pass
+
+def find_intersection(segment_a, segment_b):
+    slope_a, intercept_a = segment_equation(segment_a)
+    slope_b, intercept_b = segment_equation(segment_b)
+    x = (intercept_b - intercept_a)/(slope_a - slope_b)
+    z = float(float(5)/float(3))
+    print float(x)
+    y = slope_a * x + intercept_a
+    return (x, y)
+
+def segment_equation(segment):
+    print segment
+    x1 = segment[0]
+    x2 = segment[1]
+    y1 = segment[2]
+    y2 = segment[3]
+    slope = (y1-y2)/(x1-x2)
+    intercept = y1-(slope * x1)
+    return (slope, intercept)    
+
+def get_longest_lines(segments_array, num_elements):
+    length_with_segments = {}
+    for segment in segments_array:
+	y1 = 600-segment[0][0]
+        y2 = 600-segment[1][0]
+	x1 = segment[0][1]
+        x2 = segment[1][1]
+	xy_coordinates = [x1, x2, y1, y2]
+        length_with_segments[length(xy_coordinates)] = xy_coordinates
+    sorted_segments = OrderedDict(sorted(length_with_segments.items(), key=lambda t: t[0], reverse=True))
+    return sorted_segments.items()[0:num_elements]
+
+def length(segment):
+    x1 = segment[0]
+    x2 = segment[1]
+    y1 = segment[2]
+    y2 = segment[3]
+    value = math.pow(x2-x1, 2) + math.pow(y2-y1, 2)
+    return math.sqrt(value) 
+
+# -------------------- methods for finding line segments --------------------
 
 def get_segments_from_edges(edge_array):
     # Returns the set of line segments from a given edge array
