@@ -28,6 +28,8 @@ def train():
 	segments = get_segments_from_edges(edge_array)
 	print "number of line segments:", len(segments)    
 
+
+
 def get_segments_from_edges(edge_array):
     # Returns the set of line segments from a given edge array
     # Cut out the background from the image

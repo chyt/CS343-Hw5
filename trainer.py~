@@ -26,7 +26,7 @@ def train():
 	image_list = images[key]
 	edge_array = image_list[0]
 	segments = get_segments_from_edges(edge_array)
-	print "number of line segments:", len(segments)
+	print "number of line segments:", len(segments)    
 
 def get_segments_from_edges(edge_array):
     # Returns the set of line segments from a given edge array
