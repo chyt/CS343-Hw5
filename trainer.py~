@@ -1,8 +1,13 @@
 import os, os.path
 import math
 import sys
-import classifier
 sys.setrecursionlimit(1000000)
+import classifier
+
+NOISE_FILTER_THRESHOLD = 100
+LINE_SEGMENT_PIXEL_DEVIATION = 3
+MINIMUM_VALID_PATH_LENGTH = 3
+LONG_TAIL = 0.90
 
 def train():
     path = "./snapshots_training/"
@@ -40,14 +45,13 @@ def get_segments_from_edges(edge_array):
     for path in paths:
 	path_string += path_string_from_array(path)
     #print path_string
-    sorted_paths = remove_tail(sorted(paths, key=len, reverse=True), 0.90)
+    sorted_paths = remove_tail(sorted(paths, key=len, reverse=True), LONG_TAIL)
     #print "number of paths:", len(sorted_paths)
 
     # Generate full line segment list
     all_segments = []
     all_segments_string = ""
     for path in sorted_paths:
-	#print "new path"
 	path_segments = find_segments_from_path(path, [])
 	all_segments_string += path_segments_string(path_segments)
 	#print path_segments_string(path_segments)
@@ -57,6 +61,9 @@ def get_segments_from_edges(edge_array):
     #print all_segments
     #print "----- all segments string -----"
     #print all_segments_string
+    f = open('segments_string.txt', 'w')
+    f.write(all_segments_string)
+    f.close()
     return all_segments
 
 def remove_tail(sorted_paths, n):
@@ -64,7 +71,7 @@ def remove_tail(sorted_paths, n):
     length = 0
     filtered_paths = []
     for path in sorted_paths:
-	if len(path)<3:
+	if len(path) < MINIMUM_VALID_PATH_LENGTH:
 	    sorted_paths.remove(path)
 	else:
 	    length += len(path)
@@ -105,7 +112,7 @@ def is_line_segment(a, b):
     init_point = a[0]
     for point in a:
 	distance = dist(init_point[0], init_point[1], b[0], b[1], point[0], point[1])
-	if distance > 3:
+	if distance > LINE_SEGMENT_PIXEL_DEVIATION:
 	    return False
     return True
     
@@ -184,8 +191,8 @@ def noise_reduction_edge_array(array):
 	y_array = array[y]
 	for x in range(0, len(y_array)):
 	    pixel_value = array[y][x]
-	    if pixel_value > 70:
+	    if pixel_value > NOISE_FILTER_THRESHOLD:
 		edge_array.append([y,x])
     return edge_array
 
-#train()
+train()
