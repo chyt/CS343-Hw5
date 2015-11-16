@@ -1,5 +1,5 @@
-from collections import OrderedDict
 from __future__ import division
+from collections import OrderedDict
 import os, os.path
 import math
 import sys
@@ -11,14 +11,24 @@ LINE_SEGMENT_PIXEL_DEVIATION = 3
 MINIMUM_VALID_PATH_LENGTH = 3
 LONG_TAIL = 0.90
 
+# Used for calculating averages
+values = {"cube": [sys.maxint, 0], "tree": [sys.maxint, 0], "steve": [sys.maxint, 0], "lady": [sys.maxint, 0]}
+below_8 = {"cube": 0, "lady": 0, "tree": 0, "steve": 0}
+cube_sum = 0
+tree_sum = 0
+lady_sum = 0
+steve_sum = 0
+
 def train():
     path = "./snapshots_training/"
     images = {}
-    i = 0;
+    i = 0
+
     for root, dirs, filenames in os.walk(path):
         for f in filenames:
-	   if f=="3cube.png":
+	   #if f=="9tree.png":
 	   #if i < 9000:
+	   if "lady" in f: 
 	       print "loading image", f
                images[f] = classifier.load_image(path+f)
 	       i = i+1
@@ -28,53 +38,135 @@ def train():
 	image_list = images[key]
 	edge_array = image_list[0]
 	segments = get_segments_from_edges(edge_array)
-        x = get_longest_lines(segments, 2)
-        print find_intersection([0, 5, 0, 5], [0, 1, 5, 3])
-	print "number of line segments:", len(segments)    
+	#calculate_average_and_range(segments, key)
+        print "FEATURE 1 (number of line segments):", len(segments)   
+	intersection_position = vertical_intersection_point(segments)
+	print "FEATURE 2 (vertical intersection position):", ("ABOVE" if  (intersection_position == 1) else "BELOW")
+    #print_averages_and_ranges()
 
-# -------------------- methods for finding features from line segments --------------------
+# -------------------- association matrix ---------------------
 
 def association_matrix(edge_array):
+    association_matrix = []
+    # FEATURE 1: NUMBER OF LINE SEGMENTS IS LESS THAN OR EQUAL TO 8
+    # FEATURE 2: VERTICAL INTERSECTION POSITIONS
+		# steve      lady      cube      tree
+    feature1 = [  0/57,      3/57,    27/57,     27/57    ]
+     
     pass
 
+# -------------------- methods for finding vertical intersection points from line segments --------------------
+
+def vertical_intersection_point(segments):
+    # Finds the point of intersection of the two longest near-vertical lines created from the line segments. If the point of intersection is above the two line segments, returns 1. Otherwise, returns 0.
+    n = 2
+    x = get_longest_vertical_lines(segments, n)
+    if len(x) < n:
+	return 0
+    segment1 = x[0][1]
+    segment2 = x[1][1]
+    intersection = find_intersection(segment1, segment2)
+    #print "segment %s has length %s" % (segment1, x[0][0])
+    #print "segment %s has length %s" % (segment2, x[1][0])
+    #print "intersection:", intersection
+    y = intersection[1]
+    max_y = max(segment1[0][1], segment1[1][1], segment2[0][1], segment2[1][1])
+    if y > max_y:
+        return 1
+    return 0
+
 def find_intersection(segment_a, segment_b):
+    # Calculates the point of intersection of two line segments.
     slope_a, intercept_a = segment_equation(segment_a)
     slope_b, intercept_b = segment_equation(segment_b)
     x = (intercept_b - intercept_a)/(slope_a - slope_b)
-    z = float(float(5)/float(3))
-    print float(x)
     y = slope_a * x + intercept_a
     return (x, y)
 
 def segment_equation(segment):
-    print segment
-    x1 = segment[0]
-    x2 = segment[1]
-    y1 = segment[2]
-    y2 = segment[3]
+    # Returns the slope and intercept of a line defined by two points.
+    x1 = segment[0][0]
+    y1 = segment[0][1]
+    x2 = segment[1][0]
+    y2 = segment[1][1]
     slope = (y1-y2)/(x1-x2)
     intercept = y1-(slope * x1)
-    return (slope, intercept)    
+    return (slope, intercept)
 
-def get_longest_lines(segments_array, num_elements):
+def get_longest_vertical_lines(segments_array, n):
+    # Returns a sorted dictionary of the top n line segments that have a slope greater than 0.5 or less than -0.5.
     length_with_segments = {}
     for segment in segments_array:
 	y1 = 600-segment[0][0]
         y2 = 600-segment[1][0]
 	x1 = segment[0][1]
         x2 = segment[1][1]
-	xy_coordinates = [x1, x2, y1, y2]
-        length_with_segments[length(xy_coordinates)] = xy_coordinates
+	if x1 != x2:
+	    slope = (y1-y2)/(x1-x2)
+	    if slope > 0.5 or slope < -0.5:
+		xy_coordinates = [(x1, y1), (x2, y2)]
+		length_with_segments[length(xy_coordinates)] = xy_coordinates
     sorted_segments = OrderedDict(sorted(length_with_segments.items(), key=lambda t: t[0], reverse=True))
-    return sorted_segments.items()[0:num_elements]
+    return sorted_segments.items()[0:n]
 
 def length(segment):
-    x1 = segment[0]
-    x2 = segment[1]
-    y1 = segment[2]
-    y2 = segment[3]
+    # Returns the length of a segment specified by its endpoints.
+    x1 = segment[0][0]
+    y1 = segment[0][1]
+    x2 = segment[1][0]
+    y2 = segment[1][1]
     value = math.pow(x2-x1, 2) + math.pow(y2-y1, 2)
     return math.sqrt(value) 
+
+# -------------------- methods for finding average and range of segment length -------------------
+
+def print_averages_and_ranges():
+    print "below 8:", below_8
+    print values
+    print "cube_average", cube_sum/27
+    print "tree_average", tree_sum/27
+    print "lady_average", lady_sum/27
+    print "cube_average", steve_sum/27
+
+def calculate_average_and_range(segments, key):
+    global lady_sum
+    global cube_sum
+    global tree_sum
+    global steve_sum = 0
+    n = 8
+    num_edges = len(segments)
+    if "cube" in key:
+        if num_edges < n:
+            below_8["cube"] += 1
+        cube_sum += num_edges
+        if num_edges < values["cube"][0]:
+            values["cube"][0] = num_edges
+        if num_edges > values["cube"][1]:
+            values["cube"][1] = num_edges
+    elif "tree" in key:
+        if num_edges < n:
+            below_8["tree"] += 1
+        tree_sum += num_edges
+        if num_edges < values["tree"][0]:
+            values["tree"][0] = num_edges
+        if num_edges > values["tree"][1]:
+            values["tree"][1] = num_edges
+    elif "steve" in key:
+        if num_edges < n:
+            below_8["steve"] += 1
+        steve_sum += num_edges
+        if num_edges < values["steve"][0]:
+            values["steve"][0] = num_edges
+        if num_edges > values["steve"][1]:
+            values["steve"][1] = num_edges
+    elif "lady" in key:
+        if num_edges < n:
+            below_8["lady"] += 1
+        lady_sum += num_edges
+        if num_edges < values["lady"][0]:
+            values["lady"][0] = num_edges
+        if num_edges > values["lady"][1]:
+            values["lady"][1] = num_edges
 
 # -------------------- methods for finding line segments --------------------
 

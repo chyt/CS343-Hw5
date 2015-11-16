@@ -2,7 +2,7 @@ import numpy as np
 import random
 import Image
 import itertools
-from trainer import get_segments_from_edges
+#from trainer import get_segments_from_edges
 
 """
 This is your object classifier. You should implement the train and
@@ -17,10 +17,9 @@ class ObjectClassifier():
     the result is displayed on top of the four-image panel.
     """
     def classify(self, edge_pixels, orientations):
-	#self.log_text = self.stringify(edge_pixels)
-	#segments = get_segments_from_edges(edge_pixels)
-	#self.appendLog("number of line segments: %s" % (len(segments)))
-	#self.appendLog("segments: %s" % (segments))
+	segments = get_segments_from_edges(edge_pixels)
+	self.appendLog("number of line segments: %s" % (len(segments)))
+	self.appendLog("segments: %s" % (segments))
 	
 	return random.choice(self.labels)
     
