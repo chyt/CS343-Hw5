@@ -24,30 +24,31 @@ def train():
     path = "./snapshots_training/"
     images = {}
     i = 0
+    number_correct = 0
 
     for root, dirs, filenames in os.walk(path):
         for f in filenames:
 	   #if f=="3steve.png":
 	   if i < 9000:
 	   #if "tree" in f: 
-	       print "loading image", f
+	       print "Loading image", f
                images[f] = classifier.load_image(path+f)
 	       i = i+1
     
-    for key in images:
-	print "\nPARSING IMAGE", key
-	image_list = images[key]
+    for image in images:
+	print "\n--------------------------------------------- PARSING IMAGE", image
+	image_list = images[image]
 	edge_array = image_list[0]
 
 	print "----- FEATURES -----"
 	segments = get_segments_from_edges(edge_array)
-        print "FEATURE 1/4 (number of line segments):", len(segments)
+        print "Feature 1/4 (number of line segments):", len(segments)
   
 	intersection_position = vertical_intersection_point(segments)
-	print "FEATURE 2/3 (vertical intersection position):", ("ABOVE" if  (intersection_position == 1) else "BELOW")
+	print "Feature 2/3 (vertical intersection position):", ("ABOVE" if  (intersection_position == 1) else "BELOW")
 
 	best_fit = best_fit_area_segments(segments)
-	print "FEATURE 5/6 (best fit):", ("STEVE" if (best_fit==1) else "LADY")
+	print "Feature 5/6 (best fit):", ("STEVE" if (best_fit==1) else "LADY")
 
 	print "----- PROBABILITIES -----"
 	prob_dict = prob_by_features(len(segments), intersection_position, best_fit)
@@ -56,7 +57,11 @@ def train():
 	
 	print "----- BEST GUESS -----"
 	best_guess = max(prob_dict.iteritems(), key=operator.itemgetter(1))[0]
-	print "File name: %s | Best guess: %s" % (key, best_guess)
+	print "File name: %s | Best guess: %s" % (image, best_guess)
+	if best_guess.lower() in image.lower():
+	   number_correct += 1
+    print "\n--------------------------------------------- RESULTS"
+    print "Correctly identified %s/%s objects." % (number_correct, len(images))
 
 # -------------------- classifier --------------------
 

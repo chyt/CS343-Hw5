@@ -4,9 +4,12 @@ import Image
 import itertools
 import operator
 
-#from trainer import get_segments_from_edges
-#from trainer import vertical_intersection_point
-#from trainer import best_fit_area_segments
+#"""
+from trainer import get_segments_from_edges
+from trainer import vertical_intersection_point
+from trainer import best_fit_area_segments
+from trainer import prob_by_features
+#"""
 
 """
 This is your object classifier. You should implement the train and
@@ -20,27 +23,31 @@ class ObjectClassifier():
     the result is displayed on top of the four-image panel.
     """
     def classify(self, edge_pixels, orientations):
+	self.append_log("---------- FEATURES: ----------")
 	segments = get_segments_from_edges(edge_pixels)
-        self.append_log("FEATURE 1/4 (number of line segments): %s" % (len(segments)))
+        self.append_log("Feature 1/4 (number of line segments): %s" % (len(segments)))
   
 	intersection_position = vertical_intersection_point(segments)
-	self.append_log("FEATURE 2/3 (vertical intersection position): %s" % (("ABOVE" if  (intersection_position == 1) else "BELOW")))
+	self.append_log("Feature 2/3 (vertical intersection position): %s" % (("ABOVE" if  (intersection_position == 1) else "BELOW")))
 
 	best_fit = best_fit_area_segments(segments)
-	self.append_log("FEATURE 5/6 (best fit): %s" % (("STEVE" if (best_fit==1) else "LADY")))
+	self.append_log("Feature 5/6 (best fit): %s" % (("STEVE" if (best_fit==1) else "LADY")))
 
-	return max(p_dict.iteritems(), key=operator.itemgetter(1))[0]
-
-	#self.append_log("p(steve): %s | p(lady): %s | p(cube): %s | p(tree): %s" % (p_steve, p_lady, p_cube, p_tree))
-	p_dict = { "Steve":p_steve, "Lady":p_lady, "Cube":p_cube, "Tree":p_tree }
-	return max(p_dict.iteritems(), key=operator.itemgetter(1))[0]
+	self.append_log("\n")
+	self.append_log("---------- PROBABILITIES: ----------")
+	prob_dict = prob_by_features(len(segments), intersection_position, best_fit)
+	for key, value in prob_dict.items():
+	    self.append_log("Probability that object is %s is %s" % (key, value))
+	
+	best_guess = max(prob_dict.iteritems(), key=operator.itemgetter(1))[0]
+	return best_guess
     
     def append_log(self, text):
 	self.log_text.append(text)
 	
     def logtext(self):
 	#return self.log_text
-	return '\n\n'.join(self.log_text);
+	return '\n'.join(self.log_text);
 
 def stringify(array):
     return_string = ""
@@ -70,7 +77,6 @@ def load_image(filename):
     vfunc = np.vectorize(find_orientation)
     orientations = vfunc(upper_left, upper_center, upper_right, mid_left, mid_right, lower_left, lower_center, lower_right)
     return (np_edges, orientations)
-
         
 """
 Shifts the rows and columns of an array, putting zeros in any empty spaces
