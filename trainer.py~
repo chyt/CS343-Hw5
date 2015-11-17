@@ -4,6 +4,7 @@ import os, os.path
 import math
 import sys
 sys.setrecursionlimit(1000000)
+import operator
 import classifier
 
 NOISE_FILTER_THRESHOLD = 100
@@ -27,24 +28,108 @@ def train():
     for root, dirs, filenames in os.walk(path):
         for f in filenames:
 	   #if f=="3steve.png":
-	   #if i < 9000:
-	   if "steve" in f: 
+	   if i < 9000:
+	   #if "tree" in f: 
 	       print "loading image", f
                images[f] = classifier.load_image(path+f)
 	       i = i+1
     
     for key in images:
-	print "parsing image", key
+	print "\nPARSING IMAGE", key
 	image_list = images[key]
 	edge_array = image_list[0]
+
+	print "----- FEATURES -----"
 	segments = get_segments_from_edges(edge_array)
-	#calculate_average_and_range(segments, key)
-        print "FEATURE 1/4 (number of line segments):", len(segments)   
+        print "FEATURE 1/4 (number of line segments):", len(segments)
+  
 	intersection_position = vertical_intersection_point(segments)
-	#print "FEATURE 2/3 (vertical intersection position):", ("ABOVE" if  (intersection_position == 1) else "BELOW")
-	area = frame_area(segments)
-	print "FEATURE 5 (area of object frame):", area
-    #print_averages_and_ranges()
+	print "FEATURE 2/3 (vertical intersection position):", ("ABOVE" if  (intersection_position == 1) else "BELOW")
+
+	best_fit = best_fit_area_segments(segments)
+	print "FEATURE 5/6 (best fit):", ("STEVE" if (best_fit==1) else "LADY")
+
+	print "----- PROBABILITIES -----"
+	prob_dict = prob_by_features(len(segments), intersection_position, best_fit)
+	for key, value in prob_dict.items():
+	    print "Probability that object is %s is %s" % (key, value)
+	
+	print "----- BEST GUESS -----"
+	best_guess = max(prob_dict.iteritems(), key=operator.itemgetter(1))[0]
+	print best_guess
+
+# -------------------- classifier --------------------
+
+def prob_by_features(num_segments, intersection_position, best_fit_area_segments):
+    # Classifies an object based on 6 features described by three properties: number of line segments, vertical intersection position, and best fit based on area and number of segments
+    matrix = association_matrix();
+
+    # Classify by feature 1: number of segments is <= 8
+    prob_feature1_steve = prob_feature1_lady = prob_feature1_cube =  prob_feature1_tree = 1
+    if num_segments <= 8:
+        prob_feature1_steve = matrix[0][0]
+	prob_feature1_lady = matrix[0][1]
+	prob_feature1_cube = matrix[0][2]
+	prob_feature1_tree = matrix[0][3]
+
+    # Classify by feature 2: vertical intersection position is ABOVE
+    prob_feature2_steve = prob_feature2_lady = prob_feature2_cube = prob_feature2_tree = 1.0
+    if intersection_position == 1:
+        prob_feature2_steve = matrix[1][0]
+	prob_feature2_lady = matrix[1][1]
+	prob_feature2_cube = matrix[1][2]
+	prob_feature2_tree = matrix[1][3]
+
+    # Classify by feature 3: vertical intersection position is BELOW
+    prob_feature3_steve = prob_feature3_lady = prob_feature3_cube = prob_feature3_tree = 1.0
+    if intersection_position == 0:
+        prob_feature3_steve = matrix[2][0]
+	prob_feature3_lady = matrix[2][1]
+	prob_feature3_cube = matrix[2][2]
+	prob_feature3_tree = matrix[2][3]
+
+    # Classify by feature 4: number of segments is > 8
+    prob_feature4_steve = prob_feature4_lady = prob_feature4_cube = prob_feature4_tree = 1.0
+    if num_segments > 8:
+	prob_feature4_steve = matrix[3][0]
+	prob_feature4_lady = matrix[3][1]
+	prob_feature4_cube = matrix[3][2]
+	prob_feature4_tree = matrix[3][3]
+
+    # Classify by feature 5: ratio of number of segments to frame area fits best to STEVE
+    prob_feature5_steve = prob_feature5_lady = prob_feature5_cube = prob_feature5_tree = 1.0
+    if best_fit_area_segments == 1:
+	prob_feature5_steve = matrix[4][0]
+	prob_feature5_lady = matrix[4][1]
+	prob_feature5_cube = matrix[4][2]
+	prob_feature5_tree = matrix[4][3]
+
+    # Classify by feature 6: ratio of number of segments to frame area fits best to LADY
+    prob_feature6_steve = prob_feature6_lady = prob_feature6_cube = prob_feature6_tree = 1.0
+    if best_fit_area_segments == 0:
+	prob_feature6_steve = matrix[5][0]
+	prob_feature6_lady = matrix[5][1]
+	prob_feature6_cube = matrix[5][2]
+	prob_feature6_tree = matrix[5][3]
+
+    # Calculate probablibility of each object based on the features of the snapshot
+
+    # P(C) = 0.25, because we have equal number of images for each object in our training set
+    p_c = 0.25
+
+    # Probability of Steve
+    prob_steve = p_c * prob_feature1_steve * prob_feature2_steve * prob_feature3_steve * prob_feature4_steve * prob_feature5_steve * prob_feature6_steve
+
+    # Probability of Lady
+    prob_lady = p_c * prob_feature1_lady * prob_feature2_lady * prob_feature3_lady * prob_feature4_lady * prob_feature5_lady * prob_feature6_lady
+
+    # Probability of Cube
+    prob_cube = p_c * prob_feature1_cube * prob_feature2_cube * prob_feature3_cube * prob_feature4_cube * prob_feature5_cube * prob_feature6_cube
+
+    # Probability of Tree
+    prob_tree = p_c * prob_feature1_tree * prob_feature2_tree * prob_feature3_tree * prob_feature4_tree * prob_feature5_tree * prob_feature6_tree
+
+    return { "Steve": prob_steve, "Lady": prob_lady, "Cube": prob_cube, "Tree": prob_tree }    
 
 # -------------------- association matrix ---------------------
 
@@ -55,18 +140,58 @@ def association_matrix():
     # FEATURE 2: VERTICAL INTERSECTION POSITION IS ABOVE
     # FEATURE 3: VERTICAL INTERSECTION POSITION IS BELOW
     # FEATURE 4: NUMBER OF LINE SEGMENTS IS GREATER THAN 8
+    # FEATURE 5: BEST FIT (# SEGMENTS, AREA) IS STEVE
+    # FEATURE 6: BEST FIT (# SEGMENTS, AREA) IS LADY
+    # 
     #             steve      lady      cube      tree
     feature1 = [   0/n,       3/n,     27/n,      27/n    ]
     feature2 = [   7/n,       5/n,      0/n,      26/n    ]
     feature3 = [  20/n,      22/n,     27/n,       1/n    ]
     feature4 = [  27/n,      24/n,      0/n,       0/n    ]
+    feature5 = [  27/n,       0/n,      0/n,       0/n    ]
+    feature6 = [   0/n,      27/n,     27/n,      27/n    ]
     
-    association_matrix = [feature1, feature2, feature3, feature4]
+    association_matrix = [feature1, feature2, feature3, feature4, feature5, feature6]
     return association_matrix
 
-# -------------------- methods for calculating frame of object --------------------
+# -------------------- methods for fitting object segments:area to training vectors for lady and steve --------------------
+
+def best_fit_area_segments(segments):
+    # Using the training data, we found a strong correlation between the area and number of segments for steve and lady. Here we define vectors to describe this correlation for each object, and match the object described by the segments to either steve of lady. Returns 1 for steve, 0 for lady.
+    area = frame_area(segments)
+    # Steve training data best fit line:
+    # y = 667.03x - 21976, r^2 = 0.822
+    steve_0 = (0, -21976)
+    steve_1 = (1, -21308.97)
+    # Lady training data best fit line:
+    # y = 1395.7x - 11967, r^2 = 0.803
+    lady_0 = (0, -11967)
+    lady_1 = (1, -10571.3)
+
+    coordinate = (len(segments), area)
+    dist_from_steve_ratios = vector_dist(steve_0, steve_1, coordinate)
+    dist_from_lady_ratios = vector_dist(lady_0, lady_1, coordinate)
+    #print "distance from steve:", dist_from_steve_ratios
+    #print "distance from lady:", dist_from_lady_ratios
+
+    # Closer to steve
+    if dist_from_steve_ratios < dist_from_lady_ratios:
+	return 1
+    # Closer to lady
+    return 0
+
+def vector_dist(a, b, c):
+    # Create a vector from two given points, a and b, and find the shortest distance from point c to the vector
+    t = b[0]-a[0], b[1]-a[1]           # Vector ab
+    dd = math.sqrt(t[0]**2+t[1]**2)    # Length of ab
+    t = t[0]/dd, t[1]/dd               # unit vector of ab
+    n = -t[1], t[0]                    # normal unit vector to ab
+    ac = c[0]-a[0], c[1]-a[1]          # vector ac
+    # Projection of ac to n (the minimum distance)
+    return math.fabs(ac[0]*n[0]+ac[1]*n[1])
 
 def frame_area(segments):
+    # Given the segments that make up an object, find the smallest pixel area that contains all of the segments.
     all_y = []
     all_x = []
     for segment in segments:
