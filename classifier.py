@@ -1,10 +1,10 @@
 import numpy as np
 import random
-import Image
+from PIL import Image
 import itertools
 import operator
 
-#"""
+"""
 from trainer import get_segments_from_edges
 from trainer import vertical_intersection_point
 from trainer import best_fit_area_segments

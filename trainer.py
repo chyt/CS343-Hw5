@@ -7,6 +7,8 @@ sys.setrecursionlimit(1000000)
 import operator
 import classifier
 
+SINGLE_VALIDATION = False
+
 NOISE_FILTER_THRESHOLD = 100
 LINE_SEGMENT_PIXEL_DEVIATION = 3
 MINIMUM_VALID_PATH_LENGTH = 3
@@ -21,101 +23,180 @@ lady_sum = 0
 steve_sum = 0
 
 def train():
-    path = "./snapshots_training/"
+    path = "./snapshots_extra/"
     images = {}
     i = 0
     number_correct = 0
 
     for root, dirs, filenames in os.walk(path):
         for f in filenames:
-	   #if f=="3steve.png":
-	   if i < 9000:
-	   #if "tree" in f: 
-	       print "Loading image", f
+           #if f=="104lady.png":
+           if i < 9000:
+           #if "tree" in f:
+               print "Loading image", f
                images[f] = classifier.load_image(path+f)
-	       i = i+1
+               i = i+1
     
     for image in images:
-	print "\n--------------------------------------------- PARSING IMAGE", image
-	image_list = images[image]
-	edge_array = image_list[0]
+        print "\n--------------------------------------------- PARSING IMAGE", image
+        image_list = images[image]
+        edge_array = image_list[0]
+        segments = get_segments_from_edges(edge_array)
 
-	print "----- FEATURES -----"
-	segments = get_segments_from_edges(edge_array)
-        print "Feature 1/4 (number of line segments):", len(segments)
-  
-	intersection_position = vertical_intersection_point(segments)
-	print "Feature 2/3 (vertical intersection position):", ("ABOVE" if  (intersection_position == 1) else "BELOW")
+        x_ranges = find_object_x_ranges(segments)
+        obj_num = 1
+        for range in x_ranges:
+            print "------------------ IDENTIFYING OBJECT %s OF %s ------------------" % (obj_num, len(x_ranges))
+            obj_num +=1
+            range_segments = find_segments_in_range(range, segments)
+            total_segment_length = length_of_all_segments(range_segments)
+            if len(range_segments) <= 1:
+                print "Object disregarded, only contains one path"
+            elif total_segment_length < 50:
+                print "Object disregarded, segments not long enough"
+            else:
+                best_guess = single_object_classifier(image, range_segments)
+            print "\n"
 
-	best_fit = best_fit_area_segments(segments)
-	print "Feature 5/6 (best fit):", ("STEVE" if (best_fit==1) else "LADY")
+            if SINGLE_VALIDATION:
+                if best_guess.lower() in image.lower():
+                    number_correct += 1
+    if SINGLE_VALIDATION:
+        print "\n--------------------------------------------- RESULTS"
+        print "Correctly identified %s/%s objects." % (number_correct, len(images))
 
-	print "----- PROBABILITIES -----"
-	prob_dict = prob_by_features(len(segments), intersection_position, best_fit)
-	for key, value in prob_dict.items():
-	    print "Probability that object is %s is %s" % (key, value)
-	
-	print "----- BEST GUESS -----"
-	best_guess = max(prob_dict.iteritems(), key=operator.itemgetter(1))[0]
-	print "File name: %s | Best guess: %s" % (image, best_guess)
-	if best_guess.lower() in image.lower():
-	   number_correct += 1
-    print "\n--------------------------------------------- RESULTS"
-    print "Correctly identified %s/%s objects." % (number_correct, len(images))
+# -------------------- multiple object classifier (extra credit) --------------------
+
+def length_of_all_segments(range_segments):
+    total_length = 0
+    for segment in range_segments:
+        total_length += length(segment)
+    return total_length
+
+def find_segments_in_range(range, segments):
+    # Filter all the segments in the image, by a given range of x values. This should identify a single object in the image. From here, we can run the classifier on the single image, and thus support multiple object recognition within a single image.
+    min_x = range[0]
+    max_x = range[1]
+    range_segments = []
+    for segment in segments:
+        a = segment[0][1]
+        b = segment[1][1]
+        min_seg_x = min(a,b)
+        max_seg_x = max(a,b)
+        if min_seg_x >= min_x and max_seg_x <= max_x:
+            range_segments.append(segment)
+    return range_segments
+
+def find_object_x_ranges(segments):
+    # Assuming that each object occupies separate ranges of x values, we can identify objects by looking for clusters of x values. Returns an array containing all the clusters that were found, given by initial and ending point.
+    x_values = []
+    for segment in segments:
+        a = segment[0][1]
+        b = segment[1][1]
+        for i in range(min(a,b), max(a,b)+1):
+            x_values.append(i)
+    x_values = list(set(x_values))
+    ranges = find_ranges(x_values, [])
+    return ranges
+
+def find_ranges(x_values, range_array):
+    # Recursively find x ranges that are occupied by objects, and returns the result in range_array.
+    if len(x_values) > 0:
+        init_point = 0
+        for i in range(0, 800):
+            if i in x_values:
+                init_point = i
+                break
+        end_point = init_point
+        # Allows a maximum gap of max_gap, due to potential inaccuracies in the segment detection algorithm
+        max_gap = 2 * MINIMUM_VALID_PATH_LENGTH + 1
+        gap = 0
+        while end_point in x_values or gap < max_gap:
+            if end_point in x_values:
+                x_values.remove(end_point)
+                gap = 0
+            else:
+                gap += 1
+            end_point += 1
+        range_array.append([init_point, end_point-1])
+        return find_ranges(x_values, range_array)
+    return range_array
+
+# -------------------- single object classifier --------------------
+
+def single_object_classifier(image, segments):
+    print "----- FEATURES -----"
+    print "Feature 1/4 (number of line segments):", len(segments)
+
+    intersection_position = vertical_intersection_point(segments)
+    print "Feature 2/3 (vertical intersection position):", ("ABOVE" if  (intersection_position == 1) else "BELOW")
+
+    best_fit = best_fit_area_segments(segments)
+    print "Feature 5/6 (best fit):", ("STEVE" if (best_fit==1) else "LADY")
+
+    print "----- PROBABILITIES -----"
+    prob_dict = prob_by_features(len(segments), intersection_position, best_fit)
+    for key, value in prob_dict.items():
+        print "Probability that object is %s is %s" % (key, value)
+
+    print "----- BEST GUESS -----"
+    best_guess = max(prob_dict.iteritems(), key=operator.itemgetter(1))[0]
+    print "File name: %s | Best guess: %s" % (image, best_guess)
+    return best_guess
 
 # -------------------- classifier --------------------
 
 def prob_by_features(num_segments, intersection_position, best_fit_area_segments):
     # Classifies an object based on 6 features described by three properties: number of line segments, vertical intersection position, and best fit based on area and number of segments
-    matrix = association_matrix();
+    matrix = association_matrix()
 
     # Classify by feature 1: number of segments is <= 8
     prob_feature1_steve = prob_feature1_lady = prob_feature1_cube =  prob_feature1_tree = 1
     if num_segments <= 8:
         prob_feature1_steve = matrix[0][0]
-	prob_feature1_lady = matrix[0][1]
-	prob_feature1_cube = matrix[0][2]
-	prob_feature1_tree = matrix[0][3]
+        prob_feature1_lady = matrix[0][1]
+        prob_feature1_cube = matrix[0][2]
+        prob_feature1_tree = matrix[0][3]
 
     # Classify by feature 2: vertical intersection position is ABOVE
     prob_feature2_steve = prob_feature2_lady = prob_feature2_cube = prob_feature2_tree = 1.0
     if intersection_position == 1:
         prob_feature2_steve = matrix[1][0]
-	prob_feature2_lady = matrix[1][1]
-	prob_feature2_cube = matrix[1][2]
-	prob_feature2_tree = matrix[1][3]
+        prob_feature2_lady = matrix[1][1]
+        prob_feature2_cube = matrix[1][2]
+        prob_feature2_tree = matrix[1][3]
 
     # Classify by feature 3: vertical intersection position is BELOW
     prob_feature3_steve = prob_feature3_lady = prob_feature3_cube = prob_feature3_tree = 1.0
     if intersection_position == 0:
         prob_feature3_steve = matrix[2][0]
-	prob_feature3_lady = matrix[2][1]
-	prob_feature3_cube = matrix[2][2]
-	prob_feature3_tree = matrix[2][3]
+        prob_feature3_lady = matrix[2][1]
+        prob_feature3_cube = matrix[2][2]
+        prob_feature3_tree = matrix[2][3]
 
     # Classify by feature 4: number of segments is > 8
     prob_feature4_steve = prob_feature4_lady = prob_feature4_cube = prob_feature4_tree = 1.0
     if num_segments > 8:
-	prob_feature4_steve = matrix[3][0]
-	prob_feature4_lady = matrix[3][1]
-	prob_feature4_cube = matrix[3][2]
-	prob_feature4_tree = matrix[3][3]
+        prob_feature4_steve = matrix[3][0]
+        prob_feature4_lady = matrix[3][1]
+        prob_feature4_cube = matrix[3][2]
+        prob_feature4_tree = matrix[3][3]
 
     # Classify by feature 5: ratio of number of segments to frame area fits best to STEVE
     prob_feature5_steve = prob_feature5_lady = prob_feature5_cube = prob_feature5_tree = 1.0
     if best_fit_area_segments == 1:
-	prob_feature5_steve = matrix[4][0]
-	prob_feature5_lady = matrix[4][1]
-	prob_feature5_cube = matrix[4][2]
-	prob_feature5_tree = matrix[4][3]
+        prob_feature5_steve = matrix[4][0]
+        prob_feature5_lady = matrix[4][1]
+        prob_feature5_cube = matrix[4][2]
+        prob_feature5_tree = matrix[4][3]
 
     # Classify by feature 6: ratio of number of segments to frame area fits best to LADY
     prob_feature6_steve = prob_feature6_lady = prob_feature6_cube = prob_feature6_tree = 1.0
     if best_fit_area_segments == 0:
-	prob_feature6_steve = matrix[5][0]
-	prob_feature6_lady = matrix[5][1]
-	prob_feature6_cube = matrix[5][2]
-	prob_feature6_tree = matrix[5][3]
+        prob_feature6_steve = matrix[5][0]
+        prob_feature6_lady = matrix[5][1]
+        prob_feature6_cube = matrix[5][2]
+        prob_feature6_tree = matrix[5][3]
 
     # Calculate probablibility of each object based on the features of the snapshot
 
@@ -181,7 +262,7 @@ def best_fit_area_segments(segments):
 
     # Closer to steve
     if dist_from_steve_ratios < dist_from_lady_ratios:
-	return 1
+        return 1
     # Closer to lady
     return 0
 
@@ -200,14 +281,14 @@ def frame_area(segments):
     all_y = []
     all_x = []
     for segment in segments:
-	y1 = 600-segment[0][0]
+        y1 = 600-segment[0][0]
         y2 = 600-segment[1][0]
-	x1 = segment[0][1]
+        x1 = segment[0][1]
         x2 = segment[1][1]
-	all_y.append(y1)
-	all_y.append(y2)
-	all_x.append(x1)
-	all_x.append(x2)
+        all_y.append(y1)
+        all_y.append(y2)
+        all_x.append(x1)
+        all_x.append(x2)
     min_x = min(all_x)
     max_x = max(all_x)
     min_y = min(all_y)
@@ -222,7 +303,7 @@ def vertical_intersection_point(segments):
     n = 2
     x = get_longest_vertical_lines(segments, n)
     if len(x) < n:
-	return 0
+        return 0
     segment1 = x[0][1]
     segment2 = x[1][1]
     intersection = find_intersection(segment1, segment2)
@@ -257,15 +338,15 @@ def get_longest_vertical_lines(segments_array, n):
     # Returns a sorted dictionary of the top n line segments that have a slope greater than 0.5 or less than -0.5.
     length_with_segments = {}
     for segment in segments_array:
-	y1 = 600-segment[0][0]
+        y1 = 600-segment[0][0]
         y2 = 600-segment[1][0]
-	x1 = segment[0][1]
+        x1 = segment[0][1]
         x2 = segment[1][1]
-	if x1 != x2:
-	    slope = (y1-y2)/(x1-x2)
-	    if slope > 0.5 or slope < -0.5:
-		xy_coordinates = [(x1, y1), (x2, y2)]
-		length_with_segments[length(xy_coordinates)] = xy_coordinates
+        if x1 != x2:
+            slope = (y1-y2)/(x1-x2)
+            if slope > 0.5 or slope < -0.5:
+                xy_coordinates = [(x1, y1), (x2, y2)]
+                length_with_segments[length(xy_coordinates)] = xy_coordinates
     sorted_segments = OrderedDict(sorted(length_with_segments.items(), key=lambda t: t[0], reverse=True))
     return sorted_segments.items()[0:n]
 
@@ -333,19 +414,19 @@ def calculate_average_and_range(segments, key):
 def get_segments_from_edges(edge_array):
     # Returns the set of line segments from a given edge array
     # Cut out the background from the image
-    edge_array = edge_array[280:]
+    edge_array = edge_array[270:]
     edge_array = edge_array[1:-1]
     # Remove 1px border from all sides
     for y in range(0, len(edge_array)):
-	row = edge_array[y]
-	edge_array[y][0] = 0
+        row = edge_array[y]
+        edge_array[y][0] = 0
         edge_array[y][-1] = 0
     # Process the image
     edge_array = noise_reduction_edge_array(edge_array)
     paths = find_all_paths(edge_array, [])
     path_string = ""
     for path in paths:
-	path_string += path_string_from_array(path)
+        path_string += path_string_from_array(path)
     #print path_string
     sorted_paths = remove_tail(sorted(paths, key=len, reverse=True), LONG_TAIL)
     #print "number of paths:", len(sorted_paths)
@@ -354,11 +435,11 @@ def get_segments_from_edges(edge_array):
     all_segments = []
     all_segments_string = ""
     for path in sorted_paths:
-	path_segments = find_segments_from_path(path, [])
-	all_segments_string += path_segments_string(path_segments)
-	#print path_segments_string(path_segments)
+        path_segments = find_segments_from_path(path, [])
+        all_segments_string += path_segments_string(path_segments)
+        #print path_segments_string(path_segments)
         for path_segment in path_segments:
-	    all_segments.append(path_segment)
+            all_segments.append(path_segment)
     #print "----- all segments -----"
     #print all_segments
     #print "----- all segments string -----"
@@ -373,16 +454,16 @@ def remove_tail(sorted_paths, n):
     length = 0
     filtered_paths = []
     for path in sorted_paths:
-	if len(path) < MINIMUM_VALID_PATH_LENGTH:
-	    sorted_paths.remove(path)
-	else:
-	    length += len(path)
+        if len(path) < MINIMUM_VALID_PATH_LENGTH:
+            sorted_paths.remove(path)
+        else:
+            length += len(path)
     filter_length = n*length
     total_path_length = 0
     for path in sorted_paths:
-	if total_path_length < filter_length:
-	    filtered_paths.append(path)
-	    total_path_length += len(path)
+        if total_path_length < filter_length:
+            filtered_paths.append(path)
+            total_path_length += len(path)
     return filtered_paths
 
 def path_segments_string(path_segments):
@@ -390,7 +471,7 @@ def path_segments_string(path_segments):
     path_segments_list = []
     path_segments_list.append(path_segments[0][0])
     for line_segment in path_segments:
-	path_segments_list.append(line_segment[1])
+        path_segments_list.append(line_segment[1])
     return path_string_from_array(path_segments_list)
 
 def find_segments_from_path(path, segment_array):
@@ -398,24 +479,24 @@ def find_segments_from_path(path, segment_array):
     init_point = path[0]
     segment = []
     for i in range(0,len(path)):
-	coordinate = path[i]
-	if is_line_segment(segment, coordinate):
-	    segment.append(coordinate)
-	else:
-	    segment_array.append([init_point, coordinate])
-	    return find_segments_from_path(path[i:], segment_array)
+        coordinate = path[i]
+        if is_line_segment(segment, coordinate):
+            segment.append(coordinate)
+        else:
+            segment_array.append([init_point, coordinate])
+            return find_segments_from_path(path[i:], segment_array)
     segment_array.append([init_point, path[-1]])
     return segment_array
 
 def is_line_segment(a, b):
     # Returns whether the path between a known line segment a, and a new point b, is a line segment.
     if len(a)==0:
-	return True
+        return True
     init_point = a[0]
     for point in a:
-	distance = dist(init_point[0], init_point[1], b[0], b[1], point[0], point[1])
-	if distance > LINE_SEGMENT_PIXEL_DEVIATION:
-	    return False
+        distance = dist(init_point[0], init_point[1], b[0], b[1], point[0], point[1])
+        if distance > LINE_SEGMENT_PIXEL_DEVIATION:
+            return False
     return True
     
 def dist(x1,y1, x2,y2, x3,y3):
@@ -439,29 +520,29 @@ def path_string_from_array(path_array):
     # Generates a string which can be used to view the path at http://www.shodor.org/interactivate/activities/SimplePlot/.
     path_string = ""
     for edge in path_array:
-	y = 600-edge[0]
-	x = edge[1]
-	path_string += "(%s,%s)" % (x, y)
+        y = 600-edge[0]
+        x = edge[1]
+        path_string += "(%s,%s)" % (x, y)
     return path_string
 
 def find_all_paths(edge_array, path_array):
     # Find all the paths in the edge space.
     if len(edge_array) > 0:
-	edge_array, path = path_from_edge_array(edge_array, edge_array[0], [])
-	path_array.append(path)
-	return find_all_paths(edge_array, path_array)
+        edge_array, path = path_from_edge_array(edge_array, edge_array[0], [])
+        path_array.append(path)
+        return find_all_paths(edge_array, path_array)
     return path_array
 
 def path_from_edge_array(edge_array, coordinate, path):
     # Recursively generate a continuous path from a given initial coordinate in the edge_array.
     neighbors = neighbors_from_edge(coordinate, edge_array)
     for edge in neighbors:
-	path.append(edge)
-	edge_array.remove(edge)
+        path.append(edge)
+        edge_array.remove(edge)
     for edge in neighbors:
-	edge_neighbors = neighbors_from_edge(edge, edge_array)
-	if len(edge_neighbors) > 0:
-	    return path_from_edge_array(edge_array, edge, path)
+        edge_neighbors = neighbors_from_edge(edge, edge_array)
+        if len(edge_neighbors) > 0:
+            return path_from_edge_array(edge_array, edge, path)
     return (edge_array, path)
 
 def neighbors_from_edge(coordinate, edge_array):
@@ -471,30 +552,30 @@ def neighbors_from_edge(coordinate, edge_array):
     neighbors = [[y-1, x-1], [y, x-1], [y+1, x-1], [y-1, x], [y, x], [y+1, x], [y-1, x+1], [y, x+1], [y+1, x+1]]
     valid_neighbors = []
     for neighbor in neighbors:
-	if neighbor in edge_array:
-	    valid_neighbors.append(neighbor)
+        if neighbor in edge_array:
+            valid_neighbors.append(neighbor)
     return valid_neighbors
 
 def count_edges_in_array(array):
     # Counts the number of edges in the edge_array.
     edge_count = 0
     for y in range(0,len(array)):
-	y_array = array[y]
-	for x in range(0, len(y_array)):
-	    pixel_value = array[y][x]
-	    if pixel_value > 0:
-		edge_count = edge_count + 1
+        y_array = array[y]
+        for x in range(0, len(y_array)):
+            pixel_value = array[y][x]
+            if pixel_value > 0:
+                edge_count = edge_count + 1
     return edge_count
 
 def noise_reduction_edge_array(array):
     # Filters the edge_array and only keeps objects that have a color value over a certain threshold.
     edge_array = []
     for y in range(0,len(array)):
-	y_array = array[y]
-	for x in range(0, len(y_array)):
-	    pixel_value = array[y][x]
-	    if pixel_value > NOISE_FILTER_THRESHOLD:
-		edge_array.append([y,x])
+        y_array = array[y]
+        for x in range(0, len(y_array)):
+            pixel_value = array[y][x]
+            if pixel_value > NOISE_FILTER_THRESHOLD:
+                edge_array.append([y,x])
     return edge_array
 
 train()
