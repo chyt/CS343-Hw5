@@ -4,11 +4,12 @@ from PIL import Image
 import itertools
 import operator
 
-"""
+#"""
 from trainer import get_segments_from_edges
-from trainer import vertical_intersection_point
-from trainer import best_fit_area_segments
-from trainer import prob_by_features
+from trainer import find_object_x_ranges
+from trainer import find_segments_in_range
+from trainer import length_of_all_segments
+from trainer import single_object_classifier
 #"""
 
 """
@@ -23,31 +24,31 @@ class ObjectClassifier():
     the result is displayed on top of the four-image panel.
     """
     def classify(self, edge_pixels, orientations):
-	self.append_log("---------- FEATURES: ----------")
-	segments = get_segments_from_edges(edge_pixels)
-        self.append_log("Feature 1/4 (number of line segments): %s" % (len(segments)))
-  
-	intersection_position = vertical_intersection_point(segments)
-	self.append_log("Feature 2/3 (vertical intersection position): %s" % (("ABOVE" if  (intersection_position == 1) else "BELOW")))
+    	self.append_log("---------- FEATURES: ----------")
+    	segments = get_segments_from_edges(edge_pixels)
+        x_ranges = find_object_x_ranges(segments)
+        objects = []
+        obj_num = 1
+        for range in x_ranges:
+            self.append_log("------------------ IDENTIFYING OBJECT %s OF %s ------------------" % (obj_num, len(x_ranges)))
+            obj_num +=1
+            range_segments = find_segments_in_range(range, segments)
+            total_segment_length = length_of_all_segments(range_segments)
+            if len(range_segments) <= 1:
+                self.append_log("Object disregarded, only contains one path")
+            elif total_segment_length < 50:
+                self.append_log("Object disregarded, segments not long enough")
+            else:
+                best_guess = single_object_classifier("Live Image", range_segments)
+                objects.append(best_guess)
+            self.append_log("\n")
+        return ", ".join(objects)
 
-	best_fit = best_fit_area_segments(segments)
-	self.append_log("Feature 5/6 (best fit): %s" % (("STEVE" if (best_fit==1) else "LADY")))
-
-	self.append_log("\n")
-	self.append_log("---------- PROBABILITIES: ----------")
-	prob_dict = prob_by_features(len(segments), intersection_position, best_fit)
-	for key, value in prob_dict.items():
-	    self.append_log("Probability that object is %s is %s" % (key, value))
-	
-	best_guess = max(prob_dict.iteritems(), key=operator.itemgetter(1))[0]
-	return best_guess
-    
     def append_log(self, text):
-	self.log_text.append(text)
+        self.log_text.append(text)
 	
     def logtext(self):
-	#return self.log_text
-	return '\n'.join(self.log_text);
+        return '\n'.join(self.log_text);
 
 def stringify(array):
     return_string = ""

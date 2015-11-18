@@ -8,6 +8,7 @@ import operator
 import classifier
 
 SINGLE_VALIDATION = False
+WRITE_TO_FILE = True
 
 NOISE_FILTER_THRESHOLD = 100
 LINE_SEGMENT_PIXEL_DEVIATION = 3
@@ -23,7 +24,7 @@ lady_sum = 0
 steve_sum = 0
 
 def train():
-    path = "./snapshots_extra/"
+    path = "./submission/snapshots/extra_credit/"
     images = {}
     i = 0
     number_correct = 0
@@ -37,6 +38,10 @@ def train():
                images[f] = classifier.load_image(path+f)
                i = i+1
     
+    f = None
+    if WRITE_TO_FILE:
+        f = open("extra_credit_results.txt", "w")
+
     for image in images:
         print "\n--------------------------------------------- PARSING IMAGE", image
         image_list = images[image]
@@ -46,8 +51,8 @@ def train():
         x_ranges = find_object_x_ranges(segments)
         obj_num = 1
         for range in x_ranges:
-            print "------------------ IDENTIFYING OBJECT %s OF %s ------------------" % (obj_num, len(x_ranges))
             obj_num +=1
+            print "------------------ IDENTIFYING OBJECT %s OF %s ------------------" % (obj_num, len(x_ranges))
             range_segments = find_segments_in_range(range, segments)
             total_segment_length = length_of_all_segments(range_segments)
             if len(range_segments) <= 1:
@@ -56,14 +61,19 @@ def train():
                 print "Object disregarded, segments not long enough"
             else:
                 best_guess = single_object_classifier(image, range_segments)
-            print "\n"
-
-            if SINGLE_VALIDATION:
-                if best_guess.lower() in image.lower():
-                    number_correct += 1
+                if WRITE_TO_FILE:
+                    f.write("Image: %s | Classification: %s\n" % (image, best_guess))
+                print "\n"
+                if SINGLE_VALIDATION:
+                    if best_guess.lower() in image.lower():
+                        number_correct += 1
     if SINGLE_VALIDATION:
         print "\n--------------------------------------------- RESULTS"
-        print "Correctly identified %s/%s objects." % (number_correct, len(images))
+        result_string = "Correctly identified %s/%s objects." % (number_correct, len(images))
+        if WRITE_TO_FILE:
+            f.write(result_string)
+            f.close()
+        print result_string
 
 # -------------------- multiple object classifier (extra credit) --------------------
 
@@ -150,9 +160,9 @@ def prob_by_features(num_segments, intersection_position, best_fit_area_segments
     # Classifies an object based on 6 features described by three properties: number of line segments, vertical intersection position, and best fit based on area and number of segments
     matrix = association_matrix()
 
-    # Classify by feature 1: number of segments is <= 8
+    # Classify by feature 1: number of segments is < 8
     prob_feature1_steve = prob_feature1_lady = prob_feature1_cube =  prob_feature1_tree = 1
-    if num_segments <= 8:
+    if num_segments < 8:
         prob_feature1_steve = matrix[0][0]
         prob_feature1_lady = matrix[0][1]
         prob_feature1_cube = matrix[0][2]
@@ -174,9 +184,9 @@ def prob_by_features(num_segments, intersection_position, best_fit_area_segments
         prob_feature3_cube = matrix[2][2]
         prob_feature3_tree = matrix[2][3]
 
-    # Classify by feature 4: number of segments is > 8
+    # Classify by feature 4: number of segments is >= 8
     prob_feature4_steve = prob_feature4_lady = prob_feature4_cube = prob_feature4_tree = 1.0
-    if num_segments > 8:
+    if num_segments >= 8:
         prob_feature4_steve = matrix[3][0]
         prob_feature4_lady = matrix[3][1]
         prob_feature4_cube = matrix[3][2]
@@ -222,10 +232,10 @@ def prob_by_features(num_segments, intersection_position, best_fit_area_segments
 def association_matrix():
     # There are 27 of each object in our training data
     n = 27
-    # FEATURE 1: NUMBER OF LINE SEGMENTS IS LESS THAN OR EQUAL TO 8
+    # FEATURE 1: NUMBER OF LINE SEGMENTS IS LESS THAN 8
     # FEATURE 2: VERTICAL INTERSECTION POSITION IS ABOVE
     # FEATURE 3: VERTICAL INTERSECTION POSITION IS BELOW
-    # FEATURE 4: NUMBER OF LINE SEGMENTS IS GREATER THAN 8
+    # FEATURE 4: NUMBER OF LINE SEGMENTS IS GREATER THAN OR EQUAL TO 8
     # FEATURE 5: BEST FIT (# SEGMENTS, AREA) IS STEVE
     # FEATURE 6: BEST FIT (# SEGMENTS, AREA) IS LADY
     # 

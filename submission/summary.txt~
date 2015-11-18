@@ -1,0 +1,39 @@
+Report
+
+We implement some pre-processing methods in order to identify more distinguishable features. They are described as follows:
+    1. We remove the top 270 rows of pixels from the image, in order to reduce the edge noise that the background creates.
+    2. We remove the left, right, and bottom 1px borders from the image, as they interfere with the edge data.
+    3. We remove any edge pixel with a value of < 100, as they are most likely background noise.
+
+From here, we convert edge pixel data to line segment data. This is because line segment data can much better describe the image, making feature more distinguishable. This process is detailed as follows:
+    1. We convert all edges to continuous paths. We do this by recursively looking for continuous paths in the edge array, removing those paths from the edge array, and adding them to a path array, until the edge array is empty.
+    2. We convert path data to line segment data. A line segment is described as a straight path defined by an initial and end point. Once again, we use a recursive approach, this time traversing through the list of paths and finding straight paths from an initial point. Once the longest straight path (defined by a pixel deviation of less than 3 pixels) from the initial point is found, we remove its composing edges from the path array, and append it as [initial point, end point] to a new line segment array. Once again, we do this until the path array is empty.
+    3. We eliminate the “long tail” from the list of line segments, removing the line segments that contain the last ~90% of the paths. We also remove all paths that contain less than three line segments. In this way we are able to remove additional noise from the image.
+
+All of our features are based upon the line segment data. We implemented a total of six features, defined by three characteristics, which are described below:
+    1. Number of line segments (num_segments).
+    2. Vertical intersection point (vert_intersect). This is found by taking the two longest segments with slope of >= |0.5|. We convert these two segments to vectors, and find their point of intersection.
+    3. Relationship between number of segments and area of segment space (area_segments). We found a strong correlation (~>0.9) between the number of segments and the area of the segment space for the lady and steve. This is important because the number of segments changes significantly based on the distance away from the object, thus the area serves as a sort of normalization factor. Using the training data, we found best-fit lines for area-segment relationship for steve, and for the lady. When we are trying to identify an object, we plot its area-segment as an (x,y) coordinate and calculate its perpendicular distance to each best-fit line.
+
+With these three characteristics derived from line segment data, we defined a set of six features:
+    1. num_segments < 8
+    2. vert_intersect is above the two lines
+    3. vert_intersect is below the two lines
+    4. num_segments >= 8.
+    5. area_segments is closer to steve’s best-fit line
+    6. area_segments is closer to lady’s best-fit line
+
+Our implementation works well assuming that the objects are not too far away (we lose detail in the number of segments) or we do not have to identify partial objects (objects that are partly cut off on the left and right). 
+
+Extra-Credit
+
+The FAQ mentioned that we could receive extra credit if we are able to identify multiple objects within a single image. Fortunately, it is not difficult to scale our implementation to support this feature.
+
+In order to identify multiple objects, we split up the set of line segments derived from the image based on their x-coordinate. The idea behind this is that multiple objects within a single image will have unique ranges of x-values. After the values are split up, we identify all the segments within the value and run our aforementioned classifier algorithm on that set of segments. In this way, we are able to handle images containing one or many objects, with a high degree of accuracy.
+
+Data set accuracy (single objects in image)
+
+Training sample size: 108 images, accuracy: 107/108
+Testing sample size: 20, accuracy: 19/20
+Validation sample size: 20, accuracy: 20/20
+Extra credit sample size: 10, accuracy: 22/23
